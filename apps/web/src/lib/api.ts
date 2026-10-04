@@ -2,7 +2,10 @@
  * API client. Session = HttpOnly cookie (never readable by JS). The CSRF token comes from
  * /api/auth/me and is sent on every state-changing request.
  */
-import { STATIC_DEMO, staticRequest } from './staticDemo';
+import { LOCAL_MODE } from './mode';
+
+// Loaded only in local mode (keeps pdf.js/tesseract out of the server build's main bundle)
+const local = () => import('./local/backend');
 
 let csrfToken: string | null = null;
 export const setCsrfToken = (t: string | null) => { csrfToken = t; };
@@ -32,13 +35,11 @@ async function parse(res: Response) {
 }
 
 export async function api<T = unknown>(method: string, url: string, body?: unknown): Promise<T> {
-  if (STATIC_DEMO) {
+  if (LOCAL_MODE) {
     try {
-      return (await staticRequest(method, url, body)) as T;
+      return (await (await local()).localRequest(method, url, body)) as T;
     } catch (e) {
-      const err = e as { status?: number; code?: string; message: string };
-      if (err.status === 401 && url !== '/api/auth/me') unauthorizedListeners.forEach((l) => l());
-      throw new ApiError(err.status ?? 500, err.code ?? 'error', err.message);
+      throw toApiError(e, url);
     }
   }
   const headers: Record<string, string> = { accept: 'application/json' };
@@ -61,7 +62,7 @@ export const del = <T,>(url: string) => api<T>('DELETE', url);
 
 /** Multipart upload with REAL upload progress (XHR exposes bytes sent; fetch does not). */
 export function upload<T>(url: string, form: FormData, onProgress: (pct: number) => void, method = 'POST'): Promise<T> {
-  if (STATIC_DEMO) return Promise.reject(new ApiError(403, 'static_demo', 'Качването не е налично в статичната демо версия. Пълната версия обработва файловете на защитен сървър.'));
+  if (LOCAL_MODE) return local().then((m) => m.localUpload(method, url, form, onProgress) as Promise<T>).catch((e) => { throw toApiError(e, url); });
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open(method, url);
@@ -85,7 +86,11 @@ export function upload<T>(url: string, form: FormData, onProgress: (pct: number)
 
 /** Download a file returned by a POST/GET (blob) without exposing a public URL. */
 export async function downloadBlob(method: 'GET' | 'POST', url: string, filename: string, body?: unknown) {
-  if (STATIC_DEMO) throw new ApiError(403, 'static_demo', 'Експортът е наличен в пълната версия със сървър.');
+  if (LOCAL_MODE) {
+    let blob: Blob;
+    try { blob = await (await local()).localDownload(url); } catch (e) { throw toApiError(e, url); }
+    return saveBlob(blob, filename);
+  }
   const headers: Record<string, string> = {};
   if (body !== undefined) headers['content-type'] = 'application/json';
   if (method !== 'GET' && csrfToken) headers['x-csrf-token'] = csrfToken;
@@ -93,7 +98,10 @@ export async function downloadBlob(method: 'GET' | 'POST', url: string, filename
     throw new ApiError(0, 'network', 'Няма връзка със сървъра.');
   });
   if (!res.ok) await parse(res);
-  const blob = await res.blob();
+  saveBlob(await res.blob(), filename);
+}
+
+function saveBlob(blob: Blob, filename: string) {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = filename;
@@ -101,4 +109,10 @@ export async function downloadBlob(method: 'GET' | 'POST', url: string, filename
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+
+function toApiError(e: unknown, url: string): ApiError {
+  const err = e as { status?: number; code?: string; message?: string; details?: Record<string, unknown> };
+  if (err.status === 401 && url !== '/api/auth/me') unauthorizedListeners.forEach((l) => l());
+  return new ApiError(err.status ?? 500, err.code ?? 'error', err.message ?? 'Възникна грешка.', err.details ?? {});
 }

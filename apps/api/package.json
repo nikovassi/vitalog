@@ -13,8 +13,7 @@
     "start": "node dist/server.js",
     "typecheck": "tsc -p .",
     "test": "vitest run",
-    "fixtures": "tsx scripts/generate-fixtures.ts",
-    "static-demo:snapshot": "tsx --env-file-if-exists=../../.env scripts/build-static-demo.ts"
+    "fixtures": "tsx scripts/generate-fixtures.ts"
   },
   "dependencies": {
     "@fastify/cookie": "^11.1.2",

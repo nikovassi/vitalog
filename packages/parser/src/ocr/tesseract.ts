@@ -22,9 +22,10 @@ export class TesseractOcr implements OcrProvider {
     return this.worker;
   }
 
-  async recognize(png: Buffer): Promise<OcrLine[]> {
+  async recognize(png: Uint8Array): Promise<OcrLine[]> {
     const worker = await this.getWorker();
-    const { data } = await worker.recognize(png, {}, { blocks: true });
+    const image = typeof Buffer !== 'undefined' ? Buffer.from(png) : new Blob([png as unknown as ArrayBuffer], { type: 'image/png' });
+    const { data } = await worker.recognize(image, {}, { blocks: true });
     const lines: OcrLine[] = [];
     for (const block of data.blocks ?? []) {
       for (const para of block.paragraphs) {

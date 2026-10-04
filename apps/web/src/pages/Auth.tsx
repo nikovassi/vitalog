@@ -12,6 +12,8 @@ import { Button } from '../components/ui/Button';
 import { Checkbox, Input } from '../components/ui/Form';
 import { Alert } from '../components/ui/Feedback';
 import { Logo } from '../components/ui/Logo';
+import { LOCAL_MODE } from '../lib/mode';
+import { Navigate } from 'react-router-dom';
 
 type Mode = 'login' | 'register' | 'forgot' | 'reset' | 'verify';
 
@@ -33,6 +35,7 @@ function Shell({ title, subtitle, children, footer }: { title: string; subtitle?
 }
 
 export default function Auth({ mode }: { mode: Mode }) {
+  if (LOCAL_MODE) return mode === 'register' ? <LocalStart /> : mode === 'login' ? <LocalLogin /> : <Navigate to="/" replace />;
   if (mode === 'register') return <Register />;
   if (mode === 'forgot') return <Forgot />;
   if (mode === 'reset') return <Reset />;
@@ -226,6 +229,68 @@ function Verify() {
       {state === 'loading' && <p className="text-muted">Проверяваме…</p>}
       {state === 'ok' && <Alert tone="success" title="Email адресът е потвърден." action={<Link to="/app" className="font-medium underline">Към началото</Link>} />}
       {state === 'error' && <Alert tone="error">{msg}</Alert>}
+    </Shell>
+  );
+}
+
+/** Local mode (GitHub Pages): no accounts – a profile that lives only in this browser. */
+function LocalStart() {
+  const { setMe } = useAuth();
+  const navigate = useNavigate();
+  const [name, setName] = useState('');
+  const [ack, setAck] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const start = async () => {
+    setBusy(true);
+    try {
+      setMe(await post<MeResponse>('/api/auth/register', { displayName: name }));
+      navigate('/app', { replace: true });
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Неуспешно.');
+      setBusy(false);
+    }
+  };
+  return (
+    <Shell title="Започни" subtitle="Без регистрация. Данните ти остават само в този браузър." footer={<Link to="/login" className="font-medium text-accent hover:underline">Вече имам данни в този браузър</Link>}>
+      <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); if (name.trim() && ack) void start(); }}>
+        {error && <Alert tone="error">{error}</Alert>}
+        <Input label="Как да те наричаме?" autoComplete="given-name" value={name} onChange={(e) => setName(e.target.value)} />
+        <Alert tone="info" title="Как се пазят данните">
+          PDF файловете се обработват на твоето устройство и всичко се записва само в този браузър. Нищо не се изпраща към сървър.
+          Ако изчистиш данните на сайта в браузъра или смениш устройството, данните няма да са налични – изтегляй копие от „Профил → Моите данни“.
+        </Alert>
+        <Checkbox checked={ack} onChange={(e) => setAck(e.target.checked)} label="Разбирам. Разбирам и че Vitalog не поставя диагнози и не замества лекар." />
+        <Button type="submit" className="w-full" size="lg" loading={busy} disabled={!name.trim() || !ack}>Започни</Button>
+        <p className="text-xs text-muted">{DISCLAIMER}</p>
+      </form>
+    </Shell>
+  );
+}
+
+function LocalLogin() {
+  const { setMe } = useAuth();
+  const navigate = useNavigate();
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const go = async (url: string) => {
+    setBusy(true);
+    setError(null);
+    try {
+      setMe(await post<MeResponse>(url));
+      navigate('/app', { replace: true });
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Неуспешно.');
+      setBusy(false);
+    }
+  };
+  return (
+    <Shell title="Добре дошъл отново" subtitle="Данните ти са записани в този браузър." footer={<Link to="/register" className="font-medium text-accent hover:underline">Започни нов профил</Link>}>
+      <div className="space-y-3">
+        {error && <Alert tone="info">{error}</Alert>}
+        <Button className="w-full" size="lg" loading={busy} onClick={() => go('/api/auth/login')}>Продължи</Button>
+        <Button className="w-full" variant="secondary" loading={busy} onClick={() => go('/api/auth/demo')}>Разгледай демо (синтетични данни)</Button>
+      </div>
     </Shell>
   );
 }

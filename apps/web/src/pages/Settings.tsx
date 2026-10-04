@@ -10,6 +10,7 @@ import { ApiError, del, downloadBlob, get, patch, post } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { applyTheme } from '../lib/theme';
 import { useTitle } from '../lib/hooks';
+import { LOCAL_MODE } from '../lib/mode';
 import { Card, PageHeader } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Checkbox, Input, Segmented } from '../components/ui/Form';
@@ -85,10 +86,11 @@ export default function Settings() {
   const [mfaOpen, setMfaOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
+  const [localWipe, setLocalWipe] = useState(false);
 
   return (
     <div className="mx-auto max-w-3xl space-y-5">
-      <PageHeader title="Профил и настройки" subtitle={me?.user.email} />
+      <PageHeader title="Профил и настройки" subtitle={LOCAL_MODE ? 'Данните се пазят само в този браузър' : me?.user.email} />
 
       {/* Mobile-only shortcuts to sections not in the bottom nav */}
       <Card className="divide-y divide-border lg:hidden">
@@ -97,8 +99,7 @@ export default function Settings() {
           { to: '/app/specialists', label: 'Моите специалисти', icon: Stethoscope },
           { to: '/app/timeline', label: 'Хронология', icon: CalendarClock },
           { to: '/app/trends', label: 'Графики', icon: Database },
-          { to: '/app/summary', label: 'Медицинско обобщение (PDF)', icon: FileDown },
-          { to: '/app/share', label: 'Сподели с лекар', icon: Share2 },
+          ...(LOCAL_MODE ? [] : [{ to: '/app/summary', label: 'Медицинско обобщение (PDF)', icon: FileDown }, { to: '/app/share', label: 'Сподели с лекар', icon: Share2 }]),
         ].map((l) => (
           <Link key={l.to} to={l.to} className="flex h-14 items-center gap-3 px-4 text-[15px] font-medium hover:bg-surface-2">
             <l.icon className="size-5 text-ink-2" aria-hidden /><span className="flex-1">{l.label}</span><ChevronRight className="size-5 text-muted" aria-hidden />
@@ -119,7 +120,19 @@ export default function Settings() {
         <p className="mt-2 flex items-center gap-1.5 text-sm text-muted"><Monitor className="size-4" /><Sun className="size-4" /><Moon className="size-4" />Предпочитанието се запазва в профила ти.</p>
       </Section>
 
-      <Section id="s-sec" title="Сигурност" icon={<ShieldCheck className="size-5" />}>
+      {LOCAL_MODE && (
+        <Section id="s-local" title="Къде са данните ми" icon={<ShieldCheck className="size-5" />}>
+          <ul className="space-y-2 text-[15px] text-ink-2">
+            <li>✓ PDF файловете се обработват на това устройство. Нищо не се изпраща към сървър.</li>
+            <li>✓ Всички данни са записани само в този браузър (IndexedDB).</li>
+            <li>⚠️ Ако изчистиш данните на сайта, ползваш режим „инкогнито“ или смениш устройството, данните няма да са налични. Изтегляй редовно копие (JSON) по-долу.</li>
+            <li>⚠️ Всеки с достъп до това устройство и браузър може да ги види. Не ползвай споделен компютър.</li>
+            <li>ℹ️ Споделянето с лекар чрез линк, двуфакторната защита и PDF обобщението са в сървърната версия.</li>
+          </ul>
+        </Section>
+      )}
+
+      {!LOCAL_MODE && <Section id="s-sec" title="Сигурност" icon={<ShieldCheck className="size-5" />}>
         <div className="flex flex-wrap gap-2">
           <Button variant="secondary" icon={<KeyRound className="size-4" />} onClick={() => setPwOpen(true)} disabled={demo}>Смени паролата</Button>
           {me?.user.mfaEnabled
@@ -142,9 +155,9 @@ export default function Settings() {
           ))}
         </ul>
         {(sessions?.length ?? 0) > 1 && <Button size="sm" variant="ghost" className="mt-2" onClick={() => revokeOthers.mutate()}>Излез от всички други устройства</Button>}
-      </Section>
+      </Section>}
 
-      <Section id="s-privacy" title="Поверителност" icon={<ShieldCheck className="size-5" />}>
+      {!LOCAL_MODE && <Section id="s-privacy" title="Поверителност" icon={<ShieldCheck className="size-5" />}>
         <ul className="space-y-2 text-[15px] text-ink-2">
           <li>✓ Данните ти са частни по подразбиране. Няма публичен профил.</li>
           <li>✓ Файловете се криптират с отделен ключ за твоя профил.</li>
@@ -168,7 +181,7 @@ export default function Settings() {
             {activity?.map((a, i) => <li key={i} className="flex justify-between gap-3 py-2"><span>{ACTIONS[a.action] ?? a.action}{!a.byOwner && a.action === 'share.access' ? ' (чрез линк)' : ''}</span><span className="num shrink-0 text-muted">{formatDateTime(a.at)}</span></li>)}
           </ul>
         </details>
-      </Section>
+      </Section>}
 
       <Section id="s-data" title="Моите данни" icon={<Database className="size-5" />}>
         <p className="mb-3 text-[15px] text-ink-2">Изтегли копие на всичките си данни по всяко време.</p>
@@ -176,14 +189,14 @@ export default function Settings() {
           <Button variant="secondary" icon={<FileDown className="size-4" />} onClick={() => downloadBlob('GET', '/api/export/csv', 'vitalog-results.csv')}>Резултати (CSV)</Button>
           <Button variant="secondary" icon={<FileDown className="size-4" />} onClick={() => reauth.run(() => downloadBlob('GET', '/api/export/json', 'vitalog-export.json'))}>Всички данни (JSON)</Button>
           <Button variant="secondary" icon={<FileDown className="size-4" />} onClick={() => reauth.run(() => downloadBlob('GET', '/api/export/fhir', 'vitalog-fhir.json'))}>FHIR R4 Bundle</Button>
-          <Button variant="secondary" icon={<FileDown className="size-4" />} onClick={() => navigate('/app/summary')}>PDF обобщение</Button>
+          {!LOCAL_MODE && <Button variant="secondary" icon={<FileDown className="size-4" />} onClick={() => navigate('/app/summary')}>PDF обобщение</Button>}
         </div>
       </Section>
 
       <Card className="border-[var(--danger)]/30 p-5 sm:p-6">
-        <h2 className="mb-2 flex items-center gap-2 font-display text-lg font-semibold text-danger"><Trash2 className="size-5" />Изтриване на акаунта</h2>
-        <p className="text-[15px] text-ink-2">Изтриването на акаунта ще премахне всички свързани данни – резултати, документи, специалисти, бележки и линкове. Действието е необратимо.</p>
-        <Button variant="danger" className="mt-4" onClick={() => (demo ? logout() : setDeleteOpen(true))}>{demo ? 'Изход от демото' : 'Изтрий акаунта'}</Button>
+        <h2 className="mb-2 flex items-center gap-2 font-display text-lg font-semibold text-danger"><Trash2 className="size-5" />{LOCAL_MODE ? 'Изтриване на всички данни' : 'Изтриване на акаунта'}</h2>
+        <p className="text-[15px] text-ink-2">{LOCAL_MODE ? 'Ще бъдат изтрити всички резултати, документи, специалисти и бележки от този браузър. Действието е необратимо.' : 'Изтриването на акаунта ще премахне всички свързани данни – резултати, документи, специалисти, бележки и линкове. Действието е необратимо.'}</p>
+        <Button variant="danger" className="mt-4" onClick={() => (LOCAL_MODE ? setLocalWipe(true) : demo ? logout() : setDeleteOpen(true))}>{LOCAL_MODE ? 'Изтрий всички данни' : demo ? 'Изход от демото' : 'Изтрий акаунта'}</Button>
       </Card>
 
       {me && ['admin', 'superadmin', 'support'].includes(me.user.role) && <Link to="/app/admin" className="block text-sm font-medium text-accent hover:underline">Административен панел →</Link>}
@@ -191,6 +204,9 @@ export default function Settings() {
       <p className="text-xs text-muted">{DISCLAIMER}</p>
 
       {reauth.dialog}
+      <ConfirmDialog open={localWipe} onClose={() => setLocalWipe(false)} requireText="ИЗТРИЙ" title="Изтриване на всички данни"
+        text="Изтриването ще премахне всички данни от този браузър. Препоръчваме първо да изтеглиш копие (JSON)."
+        onConfirm={async () => { await post('/api/account/delete'); setMe(null); navigate('/', { replace: true }); }} />
       <ChangePasswordDialog open={pwOpen} onClose={() => setPwOpen(false)} />
       <MfaDialog open={mfaOpen} onClose={() => setMfaOpen(false)} run={reauth.run} />
       <DeleteAccountDialog open={deleteOpen} onClose={() => setDeleteOpen(false)} run={reauth.run} />

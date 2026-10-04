@@ -1,4 +1,6 @@
-import { getBiomarker } from '@vitalog/shared';
+import { getBiomarker } from './biomarkers';
+
+const hexToBase64 = (hex: string) => btoa(String.fromCharCode(...(hex.match(/../g) ?? []).map((h) => parseInt(h, 16))));
 
 /**
  * Minimal FHIR R4 export (Bundle type "collection"). Not a full FHIR server – a portable,
@@ -6,7 +8,7 @@ import { getBiomarker } from '@vitalog/shared';
  * Mapping table: docs/04-DATA-MODEL.md.
  */
 
-interface Input {
+export interface FhirInput {
   user: { id: string; displayName: string; fullName: string | null; birthYear: number | null };
   reports: Array<{ id: string; title: string; collectedAt: string; laboratoryId: string | null; documentId: string | null; specialistId: string | null }>;
   results: Array<{
@@ -35,7 +37,7 @@ const INTERP: Record<string, { code: string; display: string } | undefined> = {
 
 const ref = (type: string, id: string) => ({ reference: `${type}/${id}` });
 
-export function buildFhirBundle(d: Input) {
+export function buildFhirBundle(d: FhirInput) {
   const entries: unknown[] = [];
   const add = (resource: { resourceType: string; id: string }) => entries.push({ fullUrl: `urn:uuid:${resource.id}`, resource });
 
@@ -63,7 +65,7 @@ export function buildFhirBundle(d: Input) {
     add({
       resourceType: 'DocumentReference', id: doc.id, status: 'current',
       type: { text: doc.category }, date: doc.uploadedAt, subject: ref('Patient', d.user.id),
-      content: [{ attachment: { contentType: doc.mimeType, title: doc.name, hash: Buffer.from(doc.sha256, 'hex').toString('base64') } }],
+      content: [{ attachment: { contentType: doc.mimeType, title: doc.name, hash: hexToBase64(doc.sha256) } }],
     } as never);
   }
   for (const r of d.results) {

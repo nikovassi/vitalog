@@ -144,15 +144,22 @@ export function demoReportSpecs(): Array<{ date: string; title: string; spec: La
   return out;
 }
 
-export const DEMO_SPECIALISTS = [
-  { name: 'Д-р Елена Примерова (демо)', specialty: 'Ендокринолог', phone: '+359 000 000 111', email: 'elena.primerova@example.com', clinic: 'Демо медицински център', address: 'ул. Примерна 10, София', website: 'https://example.com', note: 'Синтетичен профил за демонстрация.', lastVisitAt: '2025-09-05', nextVisitAt: '2026-11-20' },
-  { name: 'Д-р Петър Демонов (демо)', specialty: 'Общопрактикуващ лекар', phone: '+359 000 000 222', email: 'p.demonov@example.com', clinic: 'Демо практика', address: 'бул. Тестов 5, София', website: null, note: null, lastVisitAt: '2026-09-15', nextVisitAt: null },
-  { name: 'Д-р Мария Синтетична (демо)', specialty: 'Кардиолог', phone: null, email: 'm.sintetichna@example.com', clinic: 'Демо кардиологичен кабинет', address: null, website: null, note: 'Проследява липидния профил.', lastVisitAt: '2025-11-02', nextVisitAt: null },
-] as const;
+export { DEMO_EVENTS, DEMO_SPECIALISTS } from '@vitalog/shared';
 
-export const DEMO_EVENTS = [
-  { kind: 'diet_change', title: 'Нов режим на хранене', date: '2025-03-01', description: 'Бележка на потребителя (демо).' },
-  { kind: 'appointment', title: 'Консултация с ендокринолог', date: '2025-09-05', description: null },
-  { kind: 'exercise', title: 'Начало на спортна програма', date: '2026-03-15', description: '3 тренировки седмично (демо).' },
-  { kind: 'appointment', title: 'Преглед при общопрактикуващ лекар', date: '2026-09-15', description: null },
-] as const;
+/** A newer upload still waiting for review (one unreadable value, one unknown biomarker). */
+export const DEMO_PENDING_SPEC: LabPdfSpec = {
+  style: 'alpha', lab: DEMO_LABS.alpha, patientName: DEMO_PATIENT, collectedAt: '01.10.2026',
+  rows: [
+    { name: 'Глюкоза', value: '5,3', unit: 'mmol/L', range: '3,9 - 6,1' },
+    { name: 'Пикочна киселина', value: '3?4', unit: 'µmol/L', range: '202 - 416' },
+    { name: 'LDL холестерол', value: '3,1', flag: 'H', unit: 'mmol/L', range: '< 3,0' },
+    { name: 'HDL холестерол', value: '1,4', unit: 'mmol/L', range: '> 1,0' },
+    { name: 'Феритин', value: '104', unit: 'ng/mL', range: '30 - 400' },
+    { name: 'Хомоцистеин', value: '11,2', unit: 'µmol/L', range: '5 - 15' },
+  ],
+};
+
+export const DEMO_EXTRA_DOCS = [
+  { file: 'demo-outpatient-2025-09-05.pdf', name: 'Амбулаторен лист – ендокринолог (демо).pdf', category: 'outpatient_sheet' as const, date: '2025-09-05', title: 'Амбулаторен лист (синтетичен)', paragraphs: ['Синтетичен документ за демонстрация на секцията „Документи“.', 'Не съдържа реални медицински данни.'] },
+  { file: 'demo-discharge-2024-11-20.pdf', name: 'Епикриза (демо).pdf', category: 'discharge_summary' as const, date: '2024-11-20', title: 'Епикриза (синтетична)', paragraphs: ['Синтетичен документ за демонстрация.'] },
+];

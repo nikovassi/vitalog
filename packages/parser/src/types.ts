@@ -42,7 +42,7 @@ export interface OcrLine { words: OcrWord[]; y: number; confidence: number }
 export interface OcrProvider {
   id: string;
   /** Recognize one rendered page image (PNG). */
-  recognize(png: Buffer, pageNumber: number): Promise<OcrLine[]>;
+  recognize(png: Uint8Array, pageNumber: number): Promise<OcrLine[]>;
   terminate?(): Promise<void>;
 }
 

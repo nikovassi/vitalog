@@ -10,7 +10,7 @@ import { newWrappedDek, randomToken, sha256 } from '../lib/crypto';
 import { putUserFile } from '../lib/files';
 import { hashPassword } from '../lib/auth';
 import { deriveResultFields } from '../services/results';
-import { DEMO_EVENTS, DEMO_LABS, DEMO_PATIENT, DEMO_SPECIALISTS, demoReportSpecs } from './data';
+import { DEMO_EVENTS, DEMO_EXTRA_DOCS, DEMO_PATIENT, DEMO_PENDING_SPEC, DEMO_SPECIALISTS, demoReportSpecs } from './data';
 import { renderLabPdf, renderTextPdf } from './lab-pdf';
 
 interface Prepared { pdf: Buffer; parsed: PipelineResult; title: string; date: string }
@@ -25,23 +25,9 @@ function prepare() {
       const pdf = await renderLabPdf(spec);
       reports.push({ pdf, parsed: await processPdf(new Uint8Array(pdf), { maxPages: 30, ocr: new NoopOcr() }), title, date });
     }
-    // A newer upload that is still waiting for review (with one unreadable value)
-    const pendingPdf = await renderLabPdf({
-      style: 'alpha', lab: DEMO_LABS.alpha, patientName: DEMO_PATIENT, collectedAt: '01.10.2026',
-      rows: [
-        { name: 'Глюкоза', value: '5,3', unit: 'mmol/L', range: '3,9 - 6,1' },
-        { name: 'Пикочна киселина', value: '3?4', unit: 'µmol/L', range: '202 - 416' },
-        { name: 'LDL холестерол', value: '3,1', flag: 'H', unit: 'mmol/L', range: '< 3,0' },
-        { name: 'HDL холестерол', value: '1,4', unit: 'mmol/L', range: '> 1,0' },
-        { name: 'Феритин', value: '104', unit: 'ng/mL', range: '30 - 400' },
-        { name: 'Хомоцистеин', value: '11,2', unit: 'µmol/L', range: '5 - 15' },
-      ],
-    });
+    const pendingPdf = await renderLabPdf(DEMO_PENDING_SPEC);
     const pending = { pdf: pendingPdf, parsed: await processPdf(new Uint8Array(pendingPdf), { maxPages: 30, ocr: new NoopOcr() }), title: 'Кръвни изследвания', date: '2026-10-01' };
-    const extras = [
-      { name: 'Амбулаторен лист – ендокринолог (демо).pdf', category: 'outpatient_sheet' as const, date: '2025-09-05', pdf: await renderTextPdf('Амбулаторен лист (синтетичен)', ['Синтетичен документ за демонстрация на секцията „Документи“.', 'Не съдържа реални медицински данни.']) },
-      { name: 'Епикриза (демо).pdf', category: 'discharge_summary' as const, date: '2024-11-20', pdf: await renderTextPdf('Епикриза (синтетична)', ['Синтетичен документ за демонстрация.']) },
-    ];
+    const extras = await Promise.all(DEMO_EXTRA_DOCS.map(async (e) => ({ name: e.name, category: e.category, date: e.date, pdf: await renderTextPdf(e.title, e.paragraphs) })));
     return { reports, pending, extras };
   })();
   return prepared;

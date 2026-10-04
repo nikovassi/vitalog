@@ -4,9 +4,20 @@
 
 > Тази платформа организира и визуализира предоставени медицински данни. Тя не поставя диагнози и не заменя консултацията с квалифициран медицински специалист.
 
-🔗 **Демо (статично, синтетични данни):** https://nikovassi.github.io/vitalog/
+🔗 **Работеща версия:** https://nikovassi.github.io/vitalog/
 
-Демото на GitHub Pages е изцяло в браузъра: записан snapshot на синтетичен профил, без сървър, без качване на файлове и без реални данни. Пълното приложение (API, база данни, обработка на PDF, криптирано хранилище) **не се хоства** в GitHub Pages – виж [Deployment](#deployment).
+## Две версии на едно приложение
+
+| | **Локална версия** (GitHub Pages) | **Сървърна версия** |
+|---|---|---|
+| Къде се обработва PDF | В браузъра на потребителя (pdf.js + Tesseract OCR) | В worker на сървър в ЕС |
+| Къде се пазят данните | Само в този браузър (IndexedDB). Нищо не се изпраща. | PostgreSQL + криптирано хранилище в ЕС |
+| Акаунти | Няма – профил в браузъра | Регистрация, 2FA, сесии |
+| Няколко устройства | Не (експорт/импорт ръчно) | Да |
+| Споделяне с лекар, PDF обобщение | Не | Да |
+| Подходяща за | Лично ползване, демо | Продукт с много потребители |
+
+И двете ползват **един и същ код** за извличане, нормализация, статуси, тенденции и FHIR (`packages/parser`, `packages/shared`), затова дават еднакви резултати. Локалната версия се build-ва с `VITE_LOCAL_MODE=true`; маршрутите на API-то са имплементирани в браузъра (`apps/web/src/lib/local/backend.ts`).
 
 ## Какво прави
 
@@ -118,7 +129,19 @@ OCR тест върху сканиран PDF (изтегля езиковите 
 RUN_OCR_TESTS=1 npm test -w @vitalog/parser
 ```
 
-E2E, достъпност (axe, light + dark) и responsive (320–1920 px) – при пуснат `npm run dev` и база със seed:
+E2E на локалната версия (качване и OCR в браузъра, без мрежови заявки):
+
+```bash
+npm run build:pages
+```
+```bash
+cd apps/web && VITE_BASE=/vitalog/ VITE_LOCAL_MODE=true npx vite preview --port 4173
+```
+```bash
+cd apps/web && npx playwright test -c playwright.local.config.ts
+```
+
+E2E, достъпност (axe, light + dark) и responsive (320–1920 px) на сървърната версия – при пуснат `npm run dev` и база със seed:
 
 ```bash
 npx playwright install chromium
@@ -143,7 +166,9 @@ npm run test:e2e
 docker compose -f deploy/docker-compose.prod.yml up -d --build
 ```
 
-**GitHub Pages** се използва само за статичното демо (`.github/workflows/pages.yml`, синтетични данни). Еднократно: *Settings → Pages → Source: GitHub Actions*. Snapshot-ът се обновява с `npm run static-demo:snapshot`.
+**GitHub Pages** хоства локалната версия (`.github/workflows/pages.yml`, автоматично при всеки push в `main`). Там няма сървър: медицинските данни не се качват никъде, обработват се и се пазят в браузъра на потребителя. Еднократно: *Settings → Pages → Source: GitHub Actions*.
+
+> ⚠️ Всички сайтове на `nikovassi.github.io` споделят един и същ origin, а браузърното хранилище е обвързано с origin-а. Ако на друг проект под този домейн се появи уязвимост (XSS), тя теоретично може да достъпи данните на Vitalog в същия браузър. За реална употреба: собствен домейн или отделен GitHub акаунт/организация за Vitalog.
 
 ## Сигурност и GDPR – накратко
 

@@ -4,16 +4,16 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { copyFileSync } from 'node:fs';
 
-const staticDemo = process.env.VITE_STATIC_DEMO === 'true';
+const localMode = process.env.VITE_LOCAL_MODE === 'true';
 
 export default defineConfig({
-  // GitHub Pages serves the static demo under /vitalog/
+  // GitHub Pages serves the local-mode build under /vitalog/
   base: process.env.VITE_BASE ?? '/',
   plugins: [
     react(),
     tailwindcss(),
     // SPA deep links on GitHub Pages: unknown paths are served 404.html → same app
-    { name: 'pages-404', apply: 'build', closeBundle() { if (staticDemo) copyFileSync('dist/index.html', 'dist/404.html'); } },
+    { name: 'pages-404', apply: 'build', closeBundle() { if (localMode) copyFileSync('dist/index.html', 'dist/404.html'); } },
   ],
   server: {
     port: 5173,

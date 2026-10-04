@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { Specialist } from '@vitalog/shared';
 import { initials } from '../../lib/util';
+import { LOCAL_MODE } from '../../lib/mode';
 
 /** Specialist photo (fetched with the session cookie, never a public URL) or initials. */
 export function Avatar({ s, size = 'size-12' }: { s: Pick<Specialist, 'id' | 'name' | 'hasPhoto'>; size?: string }) {
@@ -8,6 +9,10 @@ export function Avatar({ s, size = 'size-12' }: { s: Pick<Specialist, 'id' | 'na
   useEffect(() => {
     if (!s.hasPhoto) return;
     let u: string | null = null;
+    if (LOCAL_MODE) {
+      void import('../../lib/local/backend').then((m) => m.localPhotoUrl(s.id)).then((x) => { u = x; setUrl(x); });
+      return () => { if (u) URL.revokeObjectURL(u); };
+    }
     fetch(`/api/specialists/${s.id}/photo`, { credentials: 'same-origin' }).then((r) => (r.ok ? r.blob() : null)).then((b) => { if (b) { u = URL.createObjectURL(b); setUrl(u); } }).catch(() => {});
     return () => { if (u) URL.revokeObjectURL(u); };
   }, [s.id, s.hasPhoto]);

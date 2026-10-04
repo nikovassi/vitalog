@@ -7,7 +7,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { openPdf } from '@vitalog/parser';
 import { imagesToPdf, renderLabPdf, renderTextPdf } from '../src/demo/lab-pdf';
-import { DEMO_LABS, demoReportSpecs } from '../src/demo/data';
+import { copyFile, readdir } from 'node:fs/promises';
+import { DEMO_EXTRA_DOCS, DEMO_LABS, DEMO_PENDING_SPEC, demoReportSpecs } from '../src/demo/data';
 
 const OUT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../fixtures/pdfs');
 
@@ -52,7 +53,7 @@ async function main() {
   const textPdf = await renderLabPdf(demoReportSpecs()[1]!.spec);
   const opened = await openPdf(new Uint8Array(textPdf), 10);
   const pngs: Buffer[] = [];
-  for (let n = 1; n <= opened.pageCount; n++) pngs.push(await opened.renderPagePng(n, 2.5));
+  for (let n = 1; n <= opened.pageCount; n++) pngs.push(Buffer.from(await opened.renderPagePng(n, 2.5)));
   await opened.destroy();
   await write('scanned-bg.pdf', await imagesToPdf(pngs));
 
@@ -85,6 +86,13 @@ async function main() {
       { name: 'Hemoglobin', value: '14.6', unit: 'g/dL', range: '13.2 - 17.1' },
     ],
   }));
+
+  // Demo documents for the in-browser local mode (GitHub Pages)
+  await write('demo-pending-2026-10-01-alpha.pdf', await renderLabPdf(DEMO_PENDING_SPEC));
+  for (const e of DEMO_EXTRA_DOCS) await write(e.file, await renderTextPdf(e.title, e.paragraphs));
+  const WEB_DEMO = path.resolve(OUT, '../../apps/web/public/demo');
+  await mkdir(WEB_DEMO, { recursive: true });
+  for (const f of (await readdir(OUT)).filter((x) => x.startsWith('demo-'))) await copyFile(path.join(OUT, f), path.join(WEB_DEMO, f));
 
   console.log(`Fixtures written to ${OUT}`);
 }

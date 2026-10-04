@@ -1,7 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import { and, asc, eq, gte, inArray, lte, or } from 'drizzle-orm';
-import { getBiomarker, isoDate, STATUS_LABELS, summaryRequestSchema } from '@vitalog/shared';
+import { buildFhirBundle, getBiomarker, isoDate, STATUS_LABELS, summaryRequestSchema } from '@vitalog/shared';
 import { db } from '../db/client';
 import {
   appointments, consents, documents, laboratories, labReports, labResults, notes, profiles, resultEdits, specialists,
@@ -10,7 +10,6 @@ import {
 import { requireRecentAuth, requireUser } from '../lib/auth';
 import { audit } from '../lib/audit';
 import { biomarkerSeries, biomarkerSummaries, toSeriesPoint } from '../services/results';
-import { buildFhirBundle } from '../services/fhir';
 import { renderSummaryPdf } from '../services/summary-pdf';
 import { toSpecialist } from '../services/mappers';
 

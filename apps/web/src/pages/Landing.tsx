@@ -8,7 +8,7 @@ import { useAuth } from '../lib/auth';
 import { Logo } from '../components/ui/Logo';
 import { Button, LinkButton } from '../components/ui/Button';
 import { Alert } from '../components/ui/Feedback';
-import { STATIC_DEMO } from '../lib/staticDemo';
+import { LOCAL_MODE } from '../lib/mode';
 
 export default function Landing() {
   const { me, setMe } = useAuth();
@@ -17,14 +17,14 @@ export default function Landing() {
   const [busy, setBusy] = useState(false);
   const demo = async () => {
     setBusy(true);
-    try { setMe(await post<MeResponse>('/api/auth/demo')); navigate('/app'); } finally { setBusy(false); }
+    try { setMe(await post<MeResponse>('/api/auth/demo')); navigate('/app'); } catch (e) { alert((e as Error).message); } finally { setBusy(false); }
   };
   return (
     <div className="min-h-dvh bg-bg">
       <header className="mx-auto flex max-w-6xl items-center justify-between px-4 py-5 sm:px-6">
         <Logo />
         <nav className="flex items-center gap-2">
-          {me ? <LinkButton to="/app" size="sm">Към профила</LinkButton> : STATIC_DEMO ? <Button size="sm" onClick={demo}>Отвори демото</Button> : <>
+          {me ? <LinkButton to="/app" size="sm">Към профила</LinkButton> : LOCAL_MODE ? <LinkButton to="/register" size="sm">Започни</LinkButton> : <>
             <LinkButton to="/login" variant="ghost" size="sm">Вход</LinkButton>
             <LinkButton to="/register" size="sm">Регистрация</LinkButton>
           </>}
@@ -39,10 +39,10 @@ export default function Landing() {
             <h1 className="font-display text-4xl leading-[1.1] font-bold tracking-tight sm:text-5xl">Лабораторните ти резултати, подредени във времето.</h1>
             <p className="mt-5 max-w-xl text-lg text-ink-2">Качи PDF от лабораторията. Vitalog извлича показателите, ти ги проверяваш, и всяко следващо изследване се добавя към графиките ти.</p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              {!STATIC_DEMO && <LinkButton to="/register" size="lg" icon={<Upload className="size-5" />}>Започни безплатно</LinkButton>}
+              <LinkButton to="/register" size="lg" icon={<Upload className="size-5" />}>{LOCAL_MODE ? 'Започни' : 'Започни безплатно'}</LinkButton>
               <Button size="lg" variant="secondary" onClick={demo} loading={busy}>Разгледай демо <ArrowRight className="size-4" /></Button>
             </div>
-            <p className="mt-3 text-sm text-muted">{STATIC_DEMO ? 'Това е статична демо версия (GitHub Pages) със синтетични данни. Пълната версия изисква защитен сървър.' : 'Демото използва само синтетични, измислени данни.'}</p>
+            <p className="mt-3 text-sm text-muted">{LOCAL_MODE ? 'Работи изцяло в браузъра ти: PDF файловете се обработват на устройството и данните остават само на него. Демото използва синтетични данни.' : 'Демото използва само синтетични, измислени данни.'}</p>
           </div>
           <HeroMock />
         </section>

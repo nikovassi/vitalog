@@ -7,7 +7,7 @@ import type { JobStage, ProcessingJob } from '@vitalog/shared';
 import { ApiError, get, post, upload } from '../lib/api';
 import { useTitle } from '../lib/hooks';
 import { JOB_ERRORS } from '../lib/util';
-import { STATIC_DEMO } from '../lib/staticDemo';
+import { LOCAL_MODE } from '../lib/mode';
 import { PageHeader } from '../components/ui/Card';
 import { Button, LinkButton } from '../components/ui/Button';
 import { Alert } from '../components/ui/Feedback';
@@ -87,8 +87,7 @@ export default function Upload() {
     <div className="mx-auto max-w-2xl">
       <PageHeader title="Качи изследване" subtitle="PDF файл с резултати от лаборатория. Ще извлечем показателите и ще ги провериш преди записване." />
 
-      {STATIC_DEMO && <StaticUploadNotice />}
-      {!processing && !STATIC_DEMO && (
+      {!processing && (
         <>
           {error && <Alert tone="error" title={error.title} className="mb-4" action={error.reportId ? <Link className="font-medium underline" to={`/app/reports/${error.reportId}`}>Отвори изследването</Link> : undefined}>{error.text}</Alert>}
           <div
@@ -112,7 +111,9 @@ export default function Upload() {
               <FileText className="size-5 text-ink-2" aria-hidden /><span><b className="block text-[15px]">Друг документ</b><span className="text-sm text-muted">Епикриза, рецепта, образна диагностика</span></span>
             </Link>
           </div>
-          <p className="mt-6 flex items-start gap-2 text-sm text-muted"><Lock className="mt-0.5 size-4 shrink-0" aria-hidden />Файлът се криптира и се съхранява частно. Достъп имаш само ти.</p>
+          <p className="mt-6 flex items-start gap-2 text-sm text-muted"><Lock className="mt-0.5 size-4 shrink-0" aria-hidden />{LOCAL_MODE
+            ? 'Файлът се обработва изцяло в браузъра ти и остава само на това устройство. Нищо не се изпраща към сървър.'
+            : 'Файлът се криптира и се съхранява частно. Достъп имаш само ти.'}</p>
         </>
       )}
 
@@ -147,22 +148,6 @@ export default function Upload() {
           )}
         </div>
       )}
-    </div>
-  );
-}
-
-/** GitHub Pages demo has no server: show the recorded review instead of uploading. */
-function StaticUploadNotice() {
-  const { data } = useQuery({ queryKey: ['jobs'], queryFn: () => get<ProcessingJob[]>('/api/jobs') });
-  const pending = data?.find((j) => j.stage === 'review_required');
-  return (
-    <div className="space-y-4">
-      <Alert tone="info" title="Статична демо версия">
-        Тук няма сървър, затова качването на файлове е изключено – никакви медицински данни не се изпращат никъде.
-        Пълната версия извлича показателите от PDF на защитен сървър в ЕС. Можеш да разгледаш как изглежда
-        прегледът на извлечените резултати с примерен синтетичен документ.
-      </Alert>
-      {pending && <LinkButton to={`/app/review/${pending.id}`} size="lg" icon={<FileText className="size-5" />}>Отвори примерен преглед на резултати</LinkButton>}
     </div>
   );
 }

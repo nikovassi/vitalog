@@ -6,3 +6,6 @@ export * from './trend';
 export * from './format';
 export * from './schemas';
 export * from './api-types';
+export * from './aggregate';
+export * from './fhir';
+export * from './demo';

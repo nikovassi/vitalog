@@ -1,0 +1,24 @@
+name: CI
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env: { POSTGRES_USER: vitalog, POSTGRES_PASSWORD: ci_only, POSTGRES_DB: vitalog_test }
+        ports: ["5433:5432"]
+        options: --health-cmd "pg_isready -U vitalog" --health-interval 3s --health-retries 20
+    env:
+      TEST_DATABASE_URL: postgres://vitalog:ci_only@127.0.0.1:5433/vitalog_test
+      ENCRYPTION_KEK: ${{ secrets.CI_ENCRYPTION_KEK }}   # any 32-byte base64 test key
+      URL_SIGNING_SECRET: ci-only-url-signing-secret-not-for-production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: npm }
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - run: npm audit --omit=dev --audit-level=high

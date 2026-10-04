@@ -1,0 +1,195 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/manrope';
+@import '@fontsource-variable/inter';
+
+/*
+ * Vitalog Calm – design tokens. Colors are CSS variables so light/dark swap in one place.
+ * Dark is selected (its own steps), not an automatic inversion.
+ */
+:root {
+  color-scheme: light;
+  --bg: #f5f6f7;
+  --surface: #ffffff;
+  --surface-2: #f0f2f4;
+  --surface-3: #e7eaed;
+  --border: #e3e6ea;
+  --border-strong: #cfd4da;
+  --ink: #1b1f24;
+  --ink-2: #434b55;
+  --muted: #5a6370;
+  --accent: #0e7c74;
+  --accent-ink: #ffffff;
+  --accent-strong: #0a5f59;
+  --accent-soft: #e3f3f1;
+  --accent-soft-ink: #0a5f59;
+  --attention: #b45309;
+  --attention-soft: #fdf1e3;
+  --attention-ink: #8a3f06;
+  --danger: #c0352b;
+  --danger-soft: #fdecea;
+  --danger-ink: #ffffff;
+  --info-soft: #eaf1fb;
+  --info-ink: #1d4f91;
+  --band: rgb(14 124 116 / 0.1);
+  --band-edge: rgb(14 124 116 / 0.45);
+  --grid: #e9ecef;
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --shadow: 0 1px 2px rgb(16 24 32 / 0.04), 0 4px 16px rgb(16 24 32 / 0.05);
+  --shadow-lg: 0 12px 40px rgb(16 24 32 / 0.12);
+  --focus: #2a78d6;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --bg: #0f1214;
+    --surface: #161a1e;
+    --surface-2: #1c2126;
+    --surface-3: #242a30;
+    --border: #262c33;
+    --border-strong: #353d45;
+    --ink: #e8ebee;
+    --ink-2: #c0c7ce;
+    --muted: #949ea8;
+    --accent: #5cc8bc;
+    --accent-ink: #062b28;
+    --accent-strong: #7fd8ce;
+    --accent-soft: #15302d;
+    --accent-soft-ink: #8fe0d6;
+    --attention: #f0a350;
+    --attention-soft: #33240f;
+    --attention-ink: #f6bf7f;
+    --danger: #f07167;
+    --danger-soft: #3a1c1a;
+    --danger-ink: #2a0b09;
+    --info-soft: #172537;
+    --info-ink: #9cc2f2;
+    --band: rgb(92 200 188 / 0.12);
+    --band-edge: rgb(92 200 188 / 0.5);
+    --grid: #232a30;
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --series-3: #199e70;
+    --shadow: 0 1px 2px rgb(0 0 0 / 0.3);
+    --shadow-lg: 0 12px 40px rgb(0 0 0 / 0.5);
+    --focus: #6aa8f0;
+  }
+}
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #0f1214;
+  --surface: #161a1e;
+  --surface-2: #1c2126;
+  --surface-3: #242a30;
+  --border: #262c33;
+  --border-strong: #353d45;
+  --ink: #e8ebee;
+  --ink-2: #c0c7ce;
+  --muted: #949ea8;
+  --accent: #5cc8bc;
+  --accent-ink: #062b28;
+  --accent-strong: #7fd8ce;
+  --accent-soft: #15302d;
+  --accent-soft-ink: #8fe0d6;
+  --attention: #f0a350;
+  --attention-soft: #33240f;
+  --attention-ink: #f6bf7f;
+  --danger: #f07167;
+  --danger-soft: #3a1c1a;
+  --danger-ink: #2a0b09;
+  --info-soft: #172537;
+  --info-ink: #9cc2f2;
+  --band: rgb(92 200 188 / 0.12);
+  --band-edge: rgb(92 200 188 / 0.5);
+  --grid: #232a30;
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.3);
+  --shadow-lg: 0 12px 40px rgb(0 0 0 / 0.5);
+  --focus: #6aa8f0;
+}
+
+@theme inline {
+  --font-sans: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Manrope Variable', 'Inter Variable', system-ui, sans-serif;
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-soft-ink: var(--accent-soft-ink);
+  --color-attention: var(--attention);
+  --color-attention-soft: var(--attention-soft);
+  --color-attention-ink: var(--attention-ink);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-danger-ink: var(--danger-ink);
+  --color-info-soft: var(--info-soft);
+  --color-info-ink: var(--info-ink);
+  --shadow-card: var(--shadow);
+  --shadow-pop: var(--shadow-lg);
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-rendering: optimizeLegibility;
+}
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+/* Grid/flex children may shrink below their content width (prevents horizontal overflow on phones) */
+.grid > * { min-width: 0; }
+
+.num { font-variant-numeric: tabular-nums; font-feature-settings: 'tnum'; }
+.font-display { letter-spacing: -0.015em; }
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+::selection { background: var(--accent-soft); color: var(--ink); }
+
+.skeleton {
+  background: linear-gradient(90deg, var(--surface-2) 0%, var(--surface-3) 50%, var(--surface-2) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+  border-radius: 8px;
+}
+@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+@keyframes fade-up { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.fade-up { animation: fade-up 0.25s ease-out both; }
+@keyframes pop { 0% { transform: scale(0.6); opacity: 0; } 60% { transform: scale(1.08); } 100% { transform: scale(1); opacity: 1; } }
+.indeterminate { animation: indet 1.2s ease-in-out infinite; }
+@keyframes indet { 0% { transform: translateX(-100%); } 100% { transform: translateX(300%); } }
+.pop { animation: pop 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+}
+
+/* Recharts: keep text in ink tokens, never series colors */
+.recharts-text { fill: var(--muted); font-size: 12px; }
+.recharts-cartesian-grid line { stroke: var(--grid); }
+.recharts-surface:focus { outline: none; }
+
+.scrollbar-none { scrollbar-width: none; }
+.scrollbar-none::-webkit-scrollbar { display: none; }
+.pb-safe { padding-bottom: env(safe-area-inset-bottom); }

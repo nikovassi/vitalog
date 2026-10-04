@@ -1,0 +1,13 @@
+# Static SPA served by Caddy (automatic HTTPS, security headers, reverse proxy to the API).
+FROM node:20-bookworm-slim AS build
+WORKDIR /app
+COPY package.json package-lock.json tsconfig.base.json ./
+COPY packages ./packages
+COPY apps/web ./apps/web
+COPY apps/api/package.json ./apps/api/package.json
+RUN npm ci --workspaces --include-workspace-root --ignore-scripts
+RUN npm run build -w @vitalog/web
+
+FROM caddy:2-alpine
+COPY deploy/Caddyfile /etc/caddy/Caddyfile
+COPY --from=build /app/apps/web/dist /srv

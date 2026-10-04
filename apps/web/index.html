@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="bg">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Vitalog – лабораторните ти резултати, подредени във времето</title>
+    <meta name="description" content="Качи PDF с лабораторни резултати и виж как се променят показателите ти във времето. Сигурно, поверително, на български." />
+    <meta name="theme-color" content="#0E7C74" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0F1214" media="(prefers-color-scheme: dark)" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="canonical" href="https://vitalog.example/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Vitalog" />
+    <meta property="og:title" content="Vitalog – лабораторните ти резултати, подредени във времето" />
+    <meta property="og:description" content="Качи PDF, провери извлечените стойности и следи показателите си на графика. Без диагнози, с пълен контрол върху данните." />
+    <meta property="og:image" content="https://vitalog.example/og-image.png" />
+    <meta property="og:locale" content="bg_BG" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <script type="application/ld+json">
+      {"@context":"https://schema.org","@type":"WebApplication","name":"Vitalog","applicationCategory":"HealthApplication","operatingSystem":"Web","inLanguage":"bg","description":"Платформа за организиране и визуализиране на лабораторни резултати. Не поставя диагнози.","offers":{"@type":"Offer","price":"0","priceCurrency":"EUR"}}
+    </script>
+    <!-- External (not inline) so a strict CSP works: applies the saved theme before first paint -->
+    <script src="/theme-init.js"></script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <noscript>Vitalog изисква JavaScript.</noscript>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

@@ -1,0 +1,11 @@
+# Private health pages must never be indexed
+User-agent: *
+Allow: /$
+Disallow: /app
+Disallow: /s/
+Disallow: /api/
+Disallow: /login
+Disallow: /register
+Disallow: /reset
+Disallow: /verify
+Sitemap: https://vitalog.example/sitemap.xml

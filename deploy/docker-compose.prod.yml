@@ -1,0 +1,30 @@
+# Single-VM production option (e.g. Scaleway/OVHcloud/Hetzner instance in the EU).
+# Prefer MANAGED PostgreSQL + S3 object storage for real production – see docs/07-DEPLOYMENT.md.
+# Secrets come from the environment / secret manager, never from this file.
+services:
+  web:
+    build: { context: .., dockerfile: deploy/Dockerfile.web }
+    ports: ["80:80", "443:443"]
+    environment: { DOMAIN: "${DOMAIN}" }
+    volumes: [caddy_data:/data, caddy_config:/config]
+    depends_on: [api]
+    restart: unless-stopped
+  api:
+    build: { context: .., dockerfile: deploy/Dockerfile.api }
+    env_file: ../.env.production
+    environment: { TRUST_PROXY: "true" }
+    volumes: [files:/data/files]
+    restart: unless-stopped
+  worker:
+    build: { context: .., dockerfile: deploy/Dockerfile.api }
+    command: ["node", "dist/worker.js"]
+    env_file: ../.env.production
+    volumes: [files:/data/files]
+    restart: unless-stopped
+    deploy: { resources: { limits: { memory: 1536m, cpus: "1.5" } } }
+  migrate:
+    build: { context: .., dockerfile: deploy/Dockerfile.api }
+    command: ["node", "dist/migrate.js"]
+    env_file: ../.env.production
+    restart: "no"
+volumes: { caddy_data: {}, caddy_config: {}, files: {} }

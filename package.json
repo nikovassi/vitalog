@@ -20,6 +20,8 @@
     "test": "npm run test --workspaces --if-present",
     "test:e2e": "npm run e2e -w @vitalog/web",
     "build": "npm run build --workspaces --if-present",
-    "lint": "npm run typecheck"
+    "lint": "npm run typecheck",
+    "static-demo:snapshot": "npm run static-demo:snapshot -w @vitalog/api",
+    "build:pages": "VITE_STATIC_DEMO=true VITE_BASE=${VITE_BASE:-/vitalog/} npm run build -w @vitalog/web"
   }
 }

@@ -7,6 +7,7 @@ import type { JobStage, ProcessingJob } from '@vitalog/shared';
 import { ApiError, get, post, upload } from '../lib/api';
 import { useTitle } from '../lib/hooks';
 import { JOB_ERRORS } from '../lib/util';
+import { STATIC_DEMO } from '../lib/staticDemo';
 import { PageHeader } from '../components/ui/Card';
 import { Button, LinkButton } from '../components/ui/Button';
 import { Alert } from '../components/ui/Feedback';
@@ -86,7 +87,8 @@ export default function Upload() {
     <div className="mx-auto max-w-2xl">
       <PageHeader title="Качи изследване" subtitle="PDF файл с резултати от лаборатория. Ще извлечем показателите и ще ги провериш преди записване." />
 
-      {!processing && (
+      {STATIC_DEMO && <StaticUploadNotice />}
+      {!processing && !STATIC_DEMO && (
         <>
           {error && <Alert tone="error" title={error.title} className="mb-4" action={error.reportId ? <Link className="font-medium underline" to={`/app/reports/${error.reportId}`}>Отвори изследването</Link> : undefined}>{error.text}</Alert>}
           <div
@@ -145,6 +147,22 @@ export default function Upload() {
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+/** GitHub Pages demo has no server: show the recorded review instead of uploading. */
+function StaticUploadNotice() {
+  const { data } = useQuery({ queryKey: ['jobs'], queryFn: () => get<ProcessingJob[]>('/api/jobs') });
+  const pending = data?.find((j) => j.stage === 'review_required');
+  return (
+    <div className="space-y-4">
+      <Alert tone="info" title="Статична демо версия">
+        Тук няма сървър, затова качването на файлове е изключено – никакви медицински данни не се изпращат никъде.
+        Пълната версия извлича показателите от PDF на защитен сървър в ЕС. Можеш да разгледаш как изглежда
+        прегледът на извлечените резултати с примерен синтетичен документ.
+      </Alert>
+      {pending && <LinkButton to={`/app/review/${pending.id}`} size="lg" icon={<FileText className="size-5" />}>Отвори примерен преглед на резултати</LinkButton>}
     </div>
   );
 }

@@ -2,6 +2,8 @@
  * API client. Session = HttpOnly cookie (never readable by JS). The CSRF token comes from
  * /api/auth/me and is sent on every state-changing request.
  */
+import { STATIC_DEMO, staticRequest } from './staticDemo';
+
 let csrfToken: string | null = null;
 export const setCsrfToken = (t: string | null) => { csrfToken = t; };
 
@@ -30,6 +32,15 @@ async function parse(res: Response) {
 }
 
 export async function api<T = unknown>(method: string, url: string, body?: unknown): Promise<T> {
+  if (STATIC_DEMO) {
+    try {
+      return (await staticRequest(method, url, body)) as T;
+    } catch (e) {
+      const err = e as { status?: number; code?: string; message: string };
+      if (err.status === 401 && url !== '/api/auth/me') unauthorizedListeners.forEach((l) => l());
+      throw new ApiError(err.status ?? 500, err.code ?? 'error', err.message);
+    }
+  }
   const headers: Record<string, string> = { accept: 'application/json' };
   if (body !== undefined) headers['content-type'] = 'application/json';
   if (method !== 'GET' && csrfToken) headers['x-csrf-token'] = csrfToken;
@@ -50,6 +61,7 @@ export const del = <T,>(url: string) => api<T>('DELETE', url);
 
 /** Multipart upload with REAL upload progress (XHR exposes bytes sent; fetch does not). */
 export function upload<T>(url: string, form: FormData, onProgress: (pct: number) => void, method = 'POST'): Promise<T> {
+  if (STATIC_DEMO) return Promise.reject(new ApiError(403, 'static_demo', 'Качването не е налично в статичната демо версия. Пълната версия обработва файловете на защитен сървър.'));
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open(method, url);
@@ -73,6 +85,7 @@ export function upload<T>(url: string, form: FormData, onProgress: (pct: number)
 
 /** Download a file returned by a POST/GET (blob) without exposing a public URL. */
 export async function downloadBlob(method: 'GET' | 'POST', url: string, filename: string, body?: unknown) {
+  if (STATIC_DEMO) throw new ApiError(403, 'static_demo', 'Експортът е наличен в пълната версия със сървър.');
   const headers: Record<string, string> = {};
   if (body !== undefined) headers['content-type'] = 'application/json';
   if (method !== 'GET' && csrfToken) headers['x-csrf-token'] = csrfToken;

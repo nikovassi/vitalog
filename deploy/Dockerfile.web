@@ -11,3 +11,5 @@ RUN npm run build -w @vitalog/web
 FROM caddy:2-alpine
 COPY deploy/Caddyfile /etc/caddy/Caddyfile
 COPY --from=build /app/apps/web/dist /srv
+# the static-demo snapshot is only for GitHub Pages
+RUN rm -rf /srv/demo-data

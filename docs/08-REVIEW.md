@@ -15,7 +15,7 @@
 | XSS | ✅ React escaping, няма `dangerouslySetInnerHTML`; строг CSP (API: helmet; frontend: Caddy); `nosniff`; `Referrer-Policy: no-referrer` | `app.ts`, `deploy/Caddyfile` |
 | SQL injection | ✅ Само параметризирани заявки (Drizzle `sql` template); LIKE шаблоните се escape-ват | `lib/http.ts → likeEscape` |
 | File upload | ✅ magic bytes + `file-type`, лимит на размер/страници, UUID имена, криптиране преди запис, дубликати по SHA-256, обработка в отделен worker с таймаут, pdf.js без eval | `flows.test.ts → upload validation`, тест „never stores … plaintext“ |
-| PDF parsing | ✅ pdf.js 5.x (`isEvalSupported:false`, без шрифтове/XFA), отделен процес; ⚠️ препоръка: seccomp/gVisor и CDR в production | `packages/parser/src/pdf.ts` |
+| PDF parsing | ✅ pdf.js 6.4 (без eval; надградено от 5.6 заради GHSA-hq66-cqwq-w95j, открито от `npm audit` в CI; без шрифтове/XFA), отделен процес; ⚠️ препоръка: seccomp/gVisor и CDR в production | `packages/parser/src/pdf.ts` |
 | Storage / Download URLs | ✅ Private; подписани URL (HMAC, 5 мин, обвързани с потребителя и сесията); `Cache-Control: no-store`; без публични линкове | IDOR тестове |
 | Share links | ✅ 256-bit token (само hash), обхват, срок, отнемане, брояч, известие; без PDF и без вътрешни ID (открито и поправено от тест) | „sharing with a doctor“ |
 | Rate limiting / разходи | ✅ глобален, auth, upload, demo; месечни квоти за обработка и AI | `app.ts`, `services/uploads.ts` |

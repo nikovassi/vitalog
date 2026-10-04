@@ -5,6 +5,15 @@ import { ProcessingError, type OcrProvider, type TextLine } from './types';
  * Security: eval disabled, no font loading, no scripting; page count capped by caller.
  */
 
+// pdf.js 6 needs Promise.withResolvers (Node ≥ 22). Tiny polyfill for older local Node.
+const P = Promise as unknown as { withResolvers?: () => unknown };
+P.withResolvers ??= function withResolvers<T>() {
+  let resolve!: (v: T) => void;
+  let reject!: (e: unknown) => void;
+  const promise = new Promise<T>((res, rej) => { resolve = res; reject = rej; });
+  return { promise, resolve, reject };
+};
+
 type PdfJs = typeof import('pdfjs-dist/legacy/build/pdf.mjs');
 let pdfjsPromise: Promise<PdfJs> | null = null;
 function pdfjs(): Promise<PdfJs> {
@@ -28,22 +37,24 @@ export async function openPdf(data: Uint8Array, maxPages: number): Promise<Opene
   if (!isPdf(data)) throw new ProcessingError('invalid_pdf');
   const lib = await pdfjs();
   let doc: Awaited<ReturnType<typeof lib.getDocument>['promise']>;
+  // pdf.js ≥ 6 never uses eval (CVE-2024-4367 class of issues); fonts/XFA/scripting stay disabled
+  const task = lib.getDocument({
+    data: new Uint8Array(data), // pdf.js detaches the buffer it receives
+    disableFontFace: true,
+    useSystemFonts: false,
+    enableXfa: false,
+    verbosity: 0,
+  });
   try {
-    doc = await lib.getDocument({
-      data: new Uint8Array(data), // pdf.js detaches the buffer it receives
-      isEvalSupported: false,
-      disableFontFace: true,
-      useSystemFonts: false,
-      enableXfa: false,
-      verbosity: 0,
-    }).promise;
+    doc = await task.promise;
   } catch (err) {
+    await task.destroy();
     const name = (err as { name?: string }).name;
     if (name === 'PasswordException') throw new ProcessingError('encrypted_pdf');
     throw new ProcessingError('invalid_pdf', (err as Error).message);
   }
   if (doc.numPages > maxPages) {
-    await doc.destroy();
+    await task.destroy();
     throw new ProcessingError('too_many_pages');
   }
   return {
@@ -76,7 +87,7 @@ export async function openPdf(data: Uint8Array, maxPages: number): Promise<Opene
       page.cleanup();
       return png;
     },
-    destroy: () => doc.destroy(),
+    destroy: () => task.destroy(),
   };
 }
 

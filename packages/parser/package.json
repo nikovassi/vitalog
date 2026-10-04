@@ -12,9 +12,9 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@napi-rs/canvas": "^0.1.96",
+    "@napi-rs/canvas": "^1.0.10",
     "@vitalog/shared": "^0.1.0",
-    "pdfjs-dist": "^5.6.205",
+    "pdfjs-dist": "^6.4.299",
     "tesseract.js": "^7.0.0",
     "zod": "^4.6.5"
   },

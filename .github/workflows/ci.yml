@@ -11,7 +11,7 @@ jobs:
         options: --health-cmd "pg_isready -U vitalog" --health-interval 3s --health-retries 20
     env:
       TEST_DATABASE_URL: postgres://vitalog:ci_only@127.0.0.1:5433/vitalog_test
-      ENCRYPTION_KEK: ${{ secrets.CI_ENCRYPTION_KEK }}   # any 32-byte base64 test key
+      ENCRYPTION_KEK: Y2ktb25seS10ZXN0LWtleS1ub3QtZm9yLXByb2QhISE=   # CI-only test key, never used in production
       URL_SIGNING_SECRET: ci-only-url-signing-secret-not-for-production
     steps:
       - uses: actions/checkout@v4

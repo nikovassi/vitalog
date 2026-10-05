@@ -1,6 +1,8 @@
 # 09 · Безплатен облак: Supabase + GitHub Pages
 
-Версията в GitHub Pages може да пази данните в облака **безплатно** чрез Supabase (Free план, регион Франкфурт). Обработката на PDF остава в браузъра, а в облака отиват **само криптирани данни**.
+Версията в GitHub Pages може да пази данните в облака **безплатно** чрез Supabase (Free план, регион в ЕС).
+
+> **Текуща инсталация:** проект `ahnrepcdkeiiqqtlkplt`, регион **West EU (Ireland, AWS eu-west-1)** – в ЕС, съвместим с GDPR. Миграцията, URL настройките (Site URL `https://nikovassi.github.io/vitalog/`, redirect `https://nikovassi.github.io/vitalog/**`), минимална парола 10 символа и GitHub променливите `SUPABASE_URL` / `SUPABASE_ANON_KEY` са настроени (05.10.2026). Обработката на PDF остава в браузъра, а в облака отиват **само криптирани данни**.
 
 ## Защо Supabase (проучване, октомври 2026)
 

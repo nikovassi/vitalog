@@ -15,8 +15,10 @@ import {
   type MeResponse, type ResultRecord, type Specialist,
 } from '@vitalog/shared';
 import { ProcessingError } from '@vitalog/parser';
+import { CLOUD_AVAILABLE } from '../cloud/sync';
+import { getStorageMode, setRecoveryCode, setStorageMode } from '../cloud/notice';
 import {
-  deleteFile, getFile, loadState, nowIso, putFile, saveState, uid, wipeAll,
+  deleteFile, getFile, isCloud, loadState, nowIso, putFile, saveState, setRemote, uid, wipeAll,
   type LocalCandidate, type LocalDocument, type LocalJob, type LocalReport, type LocalSpecialist, type LocalState,
 } from './store';
 import { MAX_UPLOAD_MB, processInBrowser, sha256Hex } from './processing';
@@ -98,12 +100,15 @@ function filterBiomarkers(list: BiomarkerSummary[], q: URLSearchParams) {
   return list.sort((a, b) => (by[q.get('sort') ?? 'newest'] ?? by.newest!)(a, b) || a.name.localeCompare(b.name, 'bg'));
 }
 
+let cloudEmail: string | null = null;
+const cloud = () => import('../cloud/sync');
+
 function me(s: LocalState): MeResponse {
   const p = s.profile!;
   return {
     csrfToken: 'local',
     mfaPending: false,
-    user: { id: 'local', email: 'Само в този браузър', emailVerified: true, role: 'user', mfaEnabled: false, createdAt: p.createdAt },
+    user: { id: 'local', email: isCloud() && cloudEmail ? cloudEmail : 'Само в този браузър', emailVerified: true, role: 'user', mfaEnabled: false, createdAt: p.createdAt },
     profile: { userId: 'local', displayName: p.displayName, fullName: p.fullName, birthYear: p.birthYear, theme: p.theme, locale: 'bg', onboardingCompletedAt: p.onboardingCompletedAt, aiProcessingConsent: false, isDemo: p.isDemo },
   };
 }
@@ -264,6 +269,8 @@ const requireProfile = (s: LocalState) => { if (!s.profile || !s.active) throw n
 
 route('GET', '/api/auth/me', ({ s }) => { requireProfile(s); return me(s); });
 route('POST', '/api/auth/demo', async ({ s }) => {
+  if (isCloud()) throw bad('Излез от облачния профил, за да отвориш демото.', 'cloud_active');
+  setStorageMode('device');
   if (s.profile?.isDemo && s.reports.length) { s.active = true; await saveState(s); return me(s); }
   if (s.profile && !s.profile.isDemo && s.reports.length) throw bad('В този браузър вече има твои данни. Изтрий ги от „Профил“, преди да отвориш демото.', 'has_data');
   await wipeAll();
@@ -271,8 +278,33 @@ route('POST', '/api/auth/demo', async ({ s }) => {
   await seedDemo(fresh);
   return me(fresh);
 });
+/** Cloud account: sign in, attach the encrypted remote store, make sure a profile exists. */
+async function attachCloud(session: { adapter: import('./store').RemoteAdapter; email: string; recoveryCode?: string }, displayName?: string) {
+  setRemote(session.adapter);
+  setStorageMode('cloud');
+  cloudEmail = session.email;
+  setRecoveryCode(session.recoveryCode);
+  const st = await loadState();
+  if (!st.profile) {
+    const now = nowIso();
+    st.profile = { displayName: displayName?.trim().slice(0, 80) || session.email.split('@')[0]!, fullName: null, birthYear: null, theme: 'system', onboardingCompletedAt: null, isDemo: false, createdAt: now };
+    log(st, 'profile.create');
+  }
+  st.active = true;
+  await saveState(st);
+  return me(st);
+}
+
 route('POST', '/api/auth/register', async ({ s, body }) => {
-  const b = body as { displayName?: string };
+  const b = body as { displayName?: string; email?: string; password?: string };
+  if (b.email && b.password) {
+    if (!CLOUD_AVAILABLE) throw serverOnly('Регистрацията с email');
+    const c = await cloud();
+    const r = await c.signUp(b.email.trim().toLowerCase(), b.password);
+    if (r === 'confirm_email') throw new LocalError(400, 'confirm_email', `Изпратихме писмо за потвърждение на ${b.email}. Отвори линка в него и след това влез.`);
+    return attachCloud(r, b.displayName);
+  }
+  setStorageMode('device');
   if (s.profile?.isDemo) { await wipeAll(); }
   const st = await loadState();
   const now = nowIso();
@@ -282,13 +314,66 @@ route('POST', '/api/auth/register', async ({ s, body }) => {
   await saveState(st);
   return me(st);
 });
-route('POST', '/api/auth/login', async ({ s }) => {
+route('POST', '/api/auth/login', async ({ s, body }) => {
+  const b = (body ?? {}) as { email?: string; password?: string };
+  if (b.email && b.password) {
+    if (!CLOUD_AVAILABLE) throw serverOnly('Входът с email');
+    const c = await cloud();
+    try {
+      return await attachCloud(await c.signIn(b.email.trim().toLowerCase(), b.password));
+    } catch (e) {
+      const err = e as { code?: string; message: string; status?: number };
+      throw new LocalError(err.status ?? 400, err.code ?? 'error', err.message);
+    }
+  }
   if (!s.profile) throw new LocalError(401, 'invalid_credentials', 'В този браузър няма профил. Започни нов или отвори демото.');
   s.active = true;
   await saveState(s);
   return me(s);
 });
-route('POST', '/api/auth/logout', async ({ s }) => { s.active = false; await saveState(s); return { ok: true }; });
+route('POST', '/api/auth/logout', async ({ s }) => {
+  if (isCloud()) {
+    await (await cloud()).signOut();
+    setRemote(null); // nothing from the cloud account stays on the device
+    cloudEmail = null;
+    return { ok: true };
+  }
+  s.active = false;
+  await saveState(s);
+  return { ok: true };
+});
+route('POST', '/api/auth/recover', async ({ body }) => {
+  const c = await cloud();
+  try {
+    return await attachCloud(await c.recover(String((body as { code?: string }).code ?? '')));
+  } catch (e) {
+    const err = e as { code?: string; message: string; status?: number };
+    throw new LocalError(err.status ?? 400, err.code ?? 'error', err.message);
+  }
+});
+route('POST', '/api/auth/forgot', async ({ body }) => {
+  if (!CLOUD_AVAILABLE) throw serverOnly('Възстановяването на парола');
+  await (await cloud()).requestPasswordReset(String((body as { email?: string }).email ?? ''));
+  return { ok: true, message: 'Ако има профил с този email, изпратихме линк за смяна на паролата.' };
+});
+route('POST', '/api/auth/reset', async ({ body }) => {
+  const c = await cloud();
+  try {
+    await c.setNewPassword(String((body as { password?: string }).password ?? ''));
+  } catch (e) { throw new LocalError(400, 'reset', (e as Error).message); }
+  return { ok: true };
+});
+route('POST', '/api/auth/change-password', async ({ body }) => {
+  if (!isCloud()) throw serverOnly('Смяната на парола');
+  const b = body as { currentPassword: string; newPassword: string };
+  try {
+    setRecoveryCode(await (await cloud()).changePassword(b.currentPassword, b.newPassword));
+  } catch (e) {
+    const err = e as { code?: string; message: string };
+    throw new LocalError(400, err.code ?? 'error', err.message);
+  }
+  return { ok: true };
+});
 route('GET', '/api/auth/sessions', () => [{ id: 'local', userAgent: navigator.userAgent, ipPrefix: 'само това устройство', createdAt: nowIso(), lastSeenAt: nowIso(), current: true }]);
 route('GET', '/api/auth/consent-texts', () => ({ version: CONSENT_VERSION }));
 
@@ -307,7 +392,16 @@ route('PATCH', '/api/profile', async ({ s, body }) => {
 });
 route('GET', '/api/account/privacy', ({ s }) => ({ aiAvailable: false, local: true, consents: [], usage: { period: '', documentsProcessed: s.documents.length, documentsLimit: Infinity, aiCalls: 0 }, retention: { auditDays: 0 } }));
 route('GET', '/api/account/activity', ({ s }) => s.activity.slice(0, 100).map((a) => ({ ...a, ipPrefix: null, userAgent: null, byOwner: true })));
-route('POST', '/api/account/delete', async () => { await wipeAll(); return { ok: true }; });
+route('POST', '/api/account/delete', async () => {
+  if (isCloud()) {
+    await (await cloud()).deleteAccount();
+    setRemote(null);
+    cloudEmail = null;
+    return { ok: true };
+  }
+  await wipeAll();
+  return { ok: true };
+});
 
 route('GET', '/api/dashboard', ({ s }): DashboardResponse => {
   requireProfile(s);
@@ -619,7 +713,38 @@ route('GET', '/api/shares', () => []);
 route('POST', '/api/shares', () => { throw serverOnly('Споделянето с лекар чрез линк'); });
 route('POST', '/api/auth/reauth', () => ({ ok: true }));
 
+let resumed: Promise<void> | null = null;
+/** On page load, reconnect a cloud session (Supabase session + key cached on this device). */
+function resumeCloud(): Promise<void> {
+  resumed ??= (async () => {
+    if (!CLOUD_AVAILABLE || getStorageMode() !== 'cloud' || isCloud()) return;
+    try {
+      const sess = await (await cloud()).resumeSession();
+      if (sess) {
+        setRemote(sess.adapter);
+        cloudEmail = sess.email;
+      } else {
+        setRemote(null);
+        throw new LocalError(401, 'unauthorized', 'Влез отново.');
+      }
+    } catch (e) {
+      if (e instanceof LocalError) throw e;
+      throw new LocalError(503, 'network', 'Няма връзка с облака. Провери интернет връзката.');
+    }
+  })();
+  const p = resumed;
+  p.catch(() => { resumed = null; });
+  return p;
+}
+
 export async function localRequest(method: string, rawUrl: string, body?: unknown): Promise<unknown> {
+  const path = new URL(rawUrl, 'http://local').pathname;
+  // auth routes work without a session; everything else needs the cloud store attached first
+  if (!/^\/api\/auth\/(login|register|demo|recover|forgot|reset)$/.test(path)) {
+    try { await resumeCloud(); } catch (e) {
+      if (getStorageMode() === 'cloud') throw e;
+    }
+  }
   const s = await loadState();
   const url = new URL(rawUrl, 'http://local');
   for (const [m, re, h] of routes) {

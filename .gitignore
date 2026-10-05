@@ -9,3 +9,4 @@ playwright-report
 test-results
 *.log
 .DS_Store
+supabase/.temp\nsupabase/.branches

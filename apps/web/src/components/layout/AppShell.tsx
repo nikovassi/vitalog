@@ -12,6 +12,8 @@ import { LinkButton } from '../ui/Button';
 import { SearchDialog } from './SearchDialog';
 import { NotificationsButton } from './Notifications';
 import { DemoBanner, VerifyBanner } from './Banners';
+import { RecoveryCodeDialog, SyncIndicator } from './CloudWidgets';
+import { LOCAL_MODE } from '../../lib/mode';
 
 const NAV = [
   { to: '/app', label: 'Начало', icon: Home, end: true },
@@ -86,6 +88,7 @@ export function AppShell() {
             <span className="truncate">Търси показател, изследване…</span>
             <kbd className="ml-auto hidden rounded-md border border-border px-1.5 text-xs sm:inline">Ctrl K</kbd>
           </button>
+          {LOCAL_MODE && <SyncIndicator />}
           <NotificationsButton />
           <button onClick={() => navigate('/app/settings')} className="hidden size-11 items-center justify-center rounded-full lg:flex" aria-label="Профил и настройки" title={me?.profile.displayName}>
             <span className="flex size-9 items-center justify-center rounded-full bg-accent-soft font-display font-semibold text-accent-soft-ink">{me?.profile.displayName.slice(0, 1).toUpperCase()}</span>
@@ -95,7 +98,7 @@ export function AppShell() {
 
       <main id="main" className="mx-auto max-w-6xl px-4 pt-5 pb-32 sm:px-6 lg:pb-12">
         {me?.profile.isDemo && <DemoBanner />}
-        {me && !me.profile.isDemo && !me.user.emailVerified && <VerifyBanner />}
+        {me && !LOCAL_MODE && !me.profile.isDemo && !me.user.emailVerified && <VerifyBanner />}
         <Outlet />
       </main>
 
@@ -120,6 +123,7 @@ export function AppShell() {
       </nav>
 
       <SearchDialog open={searchOpen} onClose={() => setSearchOpen(false)} />
+      {LOCAL_MODE && <RecoveryCodeDialog />}
     </div>
   );
 }

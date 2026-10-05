@@ -1,0 +1,16 @@
+# Supabase Free projects are paused after 7 days without database activity.
+# This calls a harmless function (returns 1, reads no data) once a day.
+# Needs repository variables SUPABASE_URL and SUPABASE_ANON_KEY (public values).
+name: Supabase keep-alive
+on:
+  schedule: [{ cron: '17 6 * * *' }]
+  workflow_dispatch:
+permissions: {}
+jobs:
+  ping:
+    if: ${{ vars.SUPABASE_URL != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          curl -fsS -X POST "${{ vars.SUPABASE_URL }}/rest/v1/rpc/vitalog_ping" \
+            -H "apikey: ${{ vars.SUPABASE_ANON_KEY }}" -H "Content-Type: application/json" -d '{}'

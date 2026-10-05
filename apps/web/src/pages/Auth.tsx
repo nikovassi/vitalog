@@ -13,6 +13,7 @@ import { Checkbox, Input } from '../components/ui/Form';
 import { Alert } from '../components/ui/Feedback';
 import { Logo } from '../components/ui/Logo';
 import { LOCAL_MODE } from '../lib/mode';
+import { CLOUD_AVAILABLE } from '../lib/cloud/sync';
 import { Navigate } from 'react-router-dom';
 
 type Mode = 'login' | 'register' | 'forgot' | 'reset' | 'verify';
@@ -34,8 +35,10 @@ function Shell({ title, subtitle, children, footer }: { title: string; subtitle?
   );
 }
 
-export default function Auth({ mode }: { mode: Mode }) {
-  if (LOCAL_MODE) return mode === 'register' ? <LocalStart /> : mode === 'login' ? <LocalLogin /> : <Navigate to="/" replace />;
+export default function Auth({ mode }: { mode: Mode | 'start' }) {
+  if (mode === 'start') return <LocalStart />;
+  if (LOCAL_MODE && !CLOUD_AVAILABLE) return mode === 'register' ? <LocalStart /> : mode === 'login' ? <LocalLogin /> : <Navigate to="/" replace />;
+  if (LOCAL_MODE && mode === 'verify') return <Navigate to="/login" replace />;
   if (mode === 'register') return <Register />;
   if (mode === 'forgot') return <Forgot />;
   if (mode === 'reset') return <Reset />;
@@ -56,6 +59,7 @@ function Login() {
   const after = useAfterLogin();
   const [error, setError] = useState<string | null>(null);
   const [mfa, setMfa] = useState(false);
+  const [recovery, setRecovery] = useState(false);
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm({ resolver: zodResolver(loginSchema) });
@@ -69,6 +73,7 @@ function Login() {
       setMe(res);
       if (res.mfaPending) setMfa(true);
     } catch (e) {
+      if (e instanceof ApiError && e.code === 'recovery_required') setRecovery(true);
       setError(e instanceof ApiError ? e.message : 'Неуспешен вход.');
     }
   });
@@ -95,6 +100,24 @@ function Login() {
     }
   };
 
+  if (recovery) {
+    return (
+      <Shell title="Код за възстановяване" subtitle="Данните ти са криптирани. След смяна на паролата се отключват с кода за възстановяване, който запази при регистрацията.">
+        <form className="space-y-4" onSubmit={async (e) => {
+          e.preventDefault();
+          setBusy(true);
+          setError(null);
+          try { setMe(await post<MeResponse>('/api/auth/recover', { code })); } catch (err) { setError(err instanceof ApiError ? err.message : 'Невалиден код.'); } finally { setBusy(false); }
+        }}>
+          {error && <Alert tone="info">{error}</Alert>}
+          <Input label="Код за възстановяване" placeholder="XXXX-XXXX-XXXX-XXXX-XXXX-XXXX" autoComplete="off" value={code} onChange={(e) => setCode(e.target.value)} autoFocus />
+          <Button type="submit" className="w-full" loading={busy} icon={<ShieldCheck className="size-4" />}>Отключи данните</Button>
+          <p className="text-sm text-muted">Без паролата и без този код данните не могат да бъдат отключени от никого – дори от нас.</p>
+        </form>
+      </Shell>
+    );
+  }
+
   if (mfa) {
     return (
       <Shell title="Двуфакторна защита" subtitle="Въведи 6-цифрения код от приложението за удостоверяване или резервен код.">
@@ -120,6 +143,15 @@ function Login() {
       </form>
       <div className="my-5 flex items-center gap-3 text-sm text-muted"><span className="h-px flex-1 bg-border" />или<span className="h-px flex-1 bg-border" /></div>
       <Button variant="secondary" className="w-full" onClick={demo} loading={busy}>Разгледай демо (синтетични данни)</Button>
+      {LOCAL_MODE && (
+        <div className="mt-3 space-y-2 text-center text-sm">
+          <button className="font-medium text-accent hover:underline" onClick={async () => {
+            setError(null);
+            try { setMe(await post<MeResponse>('/api/auth/login', {})); } catch (e) { setError(e instanceof ApiError ? e.message : 'Няма данни на това устройство.'); }
+          }}>Продължи с данните само на това устройство</button>
+          <Link to="/start" className="block font-medium text-muted hover:underline">Започни без профил (само на това устройство)</Link>
+        </div>
+      )}
     </Shell>
   );
 }
@@ -136,6 +168,7 @@ function Register() {
   const { setMe } = useAuth();
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm({ resolver: zodResolver(registerForm), defaultValues: { consentHealthData: false, acceptDisclaimer: false } });
   const onSubmit = handleSubmit(async (v) => {
     setError(null);
@@ -143,18 +176,25 @@ function Register() {
       setMe(await post<MeResponse>('/api/auth/register', { email: v.email, password: v.password, displayName: v.displayName, consentHealthData: true, consentVersion: CONSENT_VERSION }));
       navigate('/app', { replace: true });
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Регистрацията не успя.');
+      if (e instanceof ApiError && e.code === 'confirm_email') setInfo(e.message);
+      else setError(e instanceof ApiError ? e.message : 'Регистрацията не успя.');
     }
   });
+  if (info) return <Shell title="Провери пощата си"><Alert tone="success">{info}</Alert><Link to="/login" className="mt-4 block font-medium text-accent hover:underline">Към вход</Link></Shell>;
   return (
-    <Shell title="Създай акаунт" subtitle="Безплатно. Отнема по-малко от минута." footer={<>Имаш акаунт? <Link to="/login" className="font-medium text-accent hover:underline">Влез</Link></>}>
+    <Shell title="Създай акаунт" subtitle="Безплатно. Отнема по-малко от минута." footer={<>Имаш акаунт? <Link to="/login" className="font-medium text-accent hover:underline">Влез</Link>{LOCAL_MODE && <> · <Link to="/start" className="font-medium text-accent hover:underline">Само на това устройство</Link></>}</>}>
       <form className="space-y-4" onSubmit={onSubmit} noValidate>
         {error && <Alert tone="error">{error}</Alert>}
         <Input label="Как да те наричаме?" autoComplete="given-name" {...register('displayName')} error={errors.displayName?.message} />
         <Input label="Email" type="email" autoComplete="email" {...register('email')} error={errors.email?.message} />
         <Input label="Парола" type="password" autoComplete="new-password" hint="Поне 10 символа. Фраза от няколко думи е добър избор." {...register('password')} error={errors.password?.message} />
+        {LOCAL_MODE && (
+          <Alert tone="info" title="Криптирано на твоето устройство">
+            PDF файловете се обработват в браузъра. Преди да бъдат запазени в облака (Supabase, Франкфурт), всички данни се криптират с ключ от паролата ти – никой друг не може да ги прочете. След регистрацията ще получиш <b>код за възстановяване</b>: без паролата и без него данните не могат да бъдат отключени.
+          </Alert>
+        )}
         <div className="space-y-3 rounded-xl bg-surface-2 p-4">
-          <Checkbox {...register('consentHealthData')} label="Съгласен съм Vitalog да съхранява и обработва моите медицински документи и резултати, за да ги организира и визуализира."
+          <Checkbox {...register('consentHealthData')} label={LOCAL_MODE ? 'Съгласен съм медицинските ми документи и резултати да се съхраняват криптирани в облака, за да ги виждам от различни устройства.' : 'Съгласен съм Vitalog да съхранява и обработва моите медицински документи и резултати, за да ги организира и визуализира.'}
             description="Изрично съгласие по чл. 9 GDPR. Можеш да го оттеглиш, като изтриеш профила си." />
           {errors.consentHealthData && <p role="alert" className="text-sm text-danger">{errors.consentHealthData.message}</p>}
           <Checkbox {...register('acceptDisclaimer')} label="Разбирам, че Vitalog не поставя диагнози и не замества лекар." />

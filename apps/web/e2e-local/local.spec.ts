@@ -6,8 +6,8 @@ const FIX = (f: string) => fileURLToPath(new URL(`../../../fixtures/pdfs/${f}`, 
 test('own data: start → upload PDF → processed in the browser → review → confirm → chart; persists after reload', async ({ page }) => {
   const outbound: string[] = [];
   page.on('request', (r) => { if (r.method() !== 'GET') outbound.push(`${r.method()} ${r.url()}`); });
-  await page.goto('./');
-  await page.getByRole('link', { name: 'Започни' }).first().click();
+  // device-only profile (works with and without cloud sync configured)
+  await page.goto('./start');
   await page.getByLabel('Как да те наричаме?').fill('Николай');
   await page.getByLabel(/Разбирам/).check();
   await page.getByRole('button', { name: 'Започни' }).click();
@@ -41,7 +41,7 @@ test('own data: start → upload PDF → processed in the browser → review →
 });
 
 test('duplicate and invalid files show clear errors', async ({ page }) => {
-  await page.goto('./register');
+  await page.goto('./start');
   await page.getByLabel('Как да те наричаме?').fill('Тест');
   await page.getByLabel(/Разбирам/).check();
   await page.getByRole('button', { name: 'Започни' }).click();
@@ -69,7 +69,7 @@ test('demo: seeded by parsing synthetic PDFs in the browser', async ({ page }) =
 
 test('scanned PDF: OCR runs in the browser and uncertain values are flagged', async ({ page }) => {
   test.setTimeout(180_000);
-  await page.goto('./register');
+  await page.goto('./start');
   await page.getByLabel('Как да те наричаме?').fill('OCR');
   await page.getByLabel(/Разбирам/).check();
   await page.getByRole('button', { name: 'Започни' }).click();

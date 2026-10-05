@@ -11,6 +11,7 @@ import { useAuth } from '../lib/auth';
 import { applyTheme } from '../lib/theme';
 import { useTitle } from '../lib/hooks';
 import { LOCAL_MODE } from '../lib/mode';
+import { isCloud } from '../lib/local/store';
 import { Card, PageHeader } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Checkbox, Input, Segmented } from '../components/ui/Form';
@@ -90,7 +91,7 @@ export default function Settings() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-5">
-      <PageHeader title="Профил и настройки" subtitle={LOCAL_MODE ? 'Данните се пазят само в този браузър' : me?.user.email} />
+      <PageHeader title="Профил и настройки" subtitle={LOCAL_MODE ? (isCloud() ? `${me?.user.email} · криптирана синхронизация` : 'Данните се пазят само в този браузър') : me?.user.email} />
 
       {/* Mobile-only shortcuts to sections not in the bottom nav */}
       <Card className="divide-y divide-border lg:hidden">
@@ -120,17 +121,31 @@ export default function Settings() {
         <p className="mt-2 flex items-center gap-1.5 text-sm text-muted"><Monitor className="size-4" /><Sun className="size-4" /><Moon className="size-4" />Предпочитанието се запазва в профила ти.</p>
       </Section>
 
-      {LOCAL_MODE && (
+      {LOCAL_MODE && (isCloud() ? (
+        <Section id="s-cloud" title="Облачен профил (криптиран)" icon={<ShieldCheck className="size-5" />}>
+          <ul className="space-y-2 text-[15px] text-ink-2">
+            <li>✓ Влязъл си като <b>{me?.user.email}</b>. Данните се синхронизират между устройствата ти.</li>
+            <li>✓ Всичко се криптира в браузъра с ключ от паролата ти (AES-256). В облака (Supabase, Франкфурт) се пази само нечетим шифър.</li>
+            <li>✓ PDF файловете се обработват на устройството ти.</li>
+            <li>⚠️ Ако забравиш паролата, данните се отключват само с кода за възстановяване. Без двете – никой не може да ги възстанови.</li>
+          </ul>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button variant="secondary" icon={<KeyRound className="size-4" />} onClick={() => setPwOpen(true)}>Смени паролата</Button>
+            <Button variant="ghost" icon={<LogOut className="size-4" />} onClick={async () => { await logout(); navigate('/login'); }}>Изход</Button>
+          </div>
+          <p className="mt-2 text-sm text-muted">При смяна на паролата получаваш нов код за възстановяване.</p>
+        </Section>
+      ) : (
         <Section id="s-local" title="Къде са данните ми" icon={<ShieldCheck className="size-5" />}>
           <ul className="space-y-2 text-[15px] text-ink-2">
             <li>✓ PDF файловете се обработват на това устройство. Нищо не се изпраща към сървър.</li>
             <li>✓ Всички данни са записани само в този браузър (IndexedDB).</li>
             <li>⚠️ Ако изчистиш данните на сайта, ползваш режим „инкогнито“ или смениш устройството, данните няма да са налични. Изтегляй редовно копие (JSON) по-долу.</li>
             <li>⚠️ Всеки с достъп до това устройство и браузър може да ги види. Не ползвай споделен компютър.</li>
-            <li>ℹ️ Споделянето с лекар чрез линк, двуфакторната защита и PDF обобщението са в сървърната версия.</li>
+            <li>ℹ️ Искаш данните на няколко устройства? Създай облачен профил – данните се криптират на устройството ти преди да бъдат запазени.</li>
           </ul>
         </Section>
-      )}
+      ))}
 
       {!LOCAL_MODE && <Section id="s-sec" title="Сигурност" icon={<ShieldCheck className="size-5" />}>
         <div className="flex flex-wrap gap-2">
@@ -195,8 +210,8 @@ export default function Settings() {
 
       <Card className="border-[var(--danger)]/30 p-5 sm:p-6">
         <h2 className="mb-2 flex items-center gap-2 font-display text-lg font-semibold text-danger"><Trash2 className="size-5" />{LOCAL_MODE ? 'Изтриване на всички данни' : 'Изтриване на акаунта'}</h2>
-        <p className="text-[15px] text-ink-2">{LOCAL_MODE ? 'Ще бъдат изтрити всички резултати, документи, специалисти и бележки от този браузър. Действието е необратимо.' : 'Изтриването на акаунта ще премахне всички свързани данни – резултати, документи, специалисти, бележки и линкове. Действието е необратимо.'}</p>
-        <Button variant="danger" className="mt-4" onClick={() => (LOCAL_MODE ? setLocalWipe(true) : demo ? logout() : setDeleteOpen(true))}>{LOCAL_MODE ? 'Изтрий всички данни' : demo ? 'Изход от демото' : 'Изтрий акаунта'}</Button>
+        <p className="text-[15px] text-ink-2">{LOCAL_MODE ? (isCloud() ? 'Ще бъдат изтрити облачният профил, всички криптирани данни и файлове. Действието е необратимо.' : 'Ще бъдат изтрити всички резултати, документи, специалисти и бележки от този браузър. Действието е необратимо.') : 'Изтриването на акаунта ще премахне всички свързани данни – резултати, документи, специалисти, бележки и линкове. Действието е необратимо.'}</p>
+        <Button variant="danger" className="mt-4" onClick={() => (LOCAL_MODE ? setLocalWipe(true) : demo ? logout() : setDeleteOpen(true))}>{LOCAL_MODE ? (isCloud() ? 'Изтрий профила и всички данни' : 'Изтрий всички данни') : demo ? 'Изход от демото' : 'Изтрий акаунта'}</Button>
       </Card>
 
       {me && ['admin', 'superadmin', 'support'].includes(me.user.role) && <Link to="/app/admin" className="block text-sm font-medium text-accent hover:underline">Административен панел →</Link>}

@@ -89,10 +89,53 @@ function tx<T>(store: 'state' | 'files', mode: IDBTransactionMode, fn: (s: IDBOb
   }));
 }
 
+/**
+ * Optional cloud backend (Supabase, see ../cloud/sync.ts). When set, the state and files are
+ * end-to-end encrypted and stored remotely instead of in IndexedDB; nothing health-related is
+ * persisted on the device (only kept in memory).
+ */
+export interface RemoteAdapter {
+  pull(): Promise<LocalState | null>;
+  push(state: LocalState): Promise<void>;
+  putFile(id: string, bytes: Uint8Array): Promise<void>;
+  getFile(id: string): Promise<Uint8Array | undefined>;
+  deleteFile(id: string): Promise<void>;
+}
+let remote: RemoteAdapter | null = null;
+const memFiles = new Map<string, Uint8Array>();
+export function setRemote(r: RemoteAdapter | null) {
+  remote = r;
+  cache = null;
+  memFiles.clear();
+}
+export const isCloud = () => remote !== null;
+
+type SyncListener = (status: 'saving' | 'saved' | 'error', message?: string) => void;
+const syncListeners = new Set<SyncListener>();
+export const onSync = (fn: SyncListener) => { syncListeners.add(fn); return () => { syncListeners.delete(fn); }; };
+const emit: SyncListener = (st, m) => syncListeners.forEach((l) => l(st, m));
+
 let cache: LocalState | null = null;
+
+/** Jobs interrupted by closing the tab mid-processing are marked failed so they can be retried. */
+function recoverStuckJobs(s: LocalState) {
+  const cutoff = Date.now() - 10 * 60_000;
+  for (const j of s.jobs) {
+    if (!['review_required', 'completed', 'failed'].includes(j.stage) && Date.parse(j.updatedAt) < cutoff) {
+      j.stage = 'failed';
+      j.errorCode = 'internal';
+    }
+  }
+}
 
 export async function loadState(): Promise<LocalState> {
   if (cache) return cache;
+  if (remote) {
+    const pulled = await remote.pull();
+    cache = pulled && pulled.version === 1 ? pulled : { ...emptyState() };
+    recoverStuckJobs(cache);
+    return cache;
+  }
   try {
     const raw = await tx<LocalState>('state', 'readonly', (s) => s.get(STATE_KEY));
     cache = raw && raw.version === 1 ? raw : emptyState();
@@ -100,25 +143,72 @@ export async function loadState(): Promise<LocalState> {
     // Private mode / storage blocked: keep working in memory for this tab
     cache = emptyState();
   }
+  recoverStuckJobs(cache);
   return cache;
 }
 
 let saving: Promise<unknown> = Promise.resolve();
+let pushTimer: ReturnType<typeof setTimeout> | null = null;
+let waiting: Array<() => void> = [];
 export function saveState(state: LocalState): Promise<unknown> {
   cache = state;
+  if (remote) {
+    // coalesce bursts of changes into one encrypted upload
+    const r = remote;
+    emit('saving');
+    if (pushTimer) clearTimeout(pushTimer);
+    return new Promise<void>((resolve) => {
+      waiting.push(resolve);
+      pushTimer = setTimeout(() => {
+        const done = waiting;
+        waiting = [];
+        const snapshot = structuredClone(state);
+        saving = saving
+          .then(() => r.push(snapshot))
+          .then(() => emit('saved'))
+          .catch((e: Error) => emit('error', e.message))
+          .finally(() => done.forEach((d) => d()));
+      }, 250);
+    });
+  }
   // serialize writes; structuredClone so later in-memory mutations don't race the write
   const snapshot = structuredClone(state);
   saving = saving.then(() => tx('state', 'readwrite', (s) => s.put(snapshot, STATE_KEY))).catch(() => {});
   return saving;
 }
 
-export const putFile = (id: string, bytes: Uint8Array) => tx('files', 'readwrite', (s) => s.put(bytes, id));
-export const getFile = (id: string) => tx<Uint8Array>('files', 'readonly', (s) => s.get(id));
-export const deleteFile = (id: string) => tx('files', 'readwrite', (s) => s.delete(id));
+export async function putFile(id: string, bytes: Uint8Array) {
+  if (remote) {
+    memFiles.set(id, bytes);
+    await remote.putFile(id, bytes);
+    return;
+  }
+  await tx('files', 'readwrite', (s) => s.put(bytes, id));
+}
+export async function getFile(id: string): Promise<Uint8Array | undefined> {
+  if (remote) {
+    const m = memFiles.get(id);
+    if (m) return m;
+    const b = await remote.getFile(id);
+    if (b) memFiles.set(id, b);
+    return b;
+  }
+  return tx<Uint8Array>('files', 'readonly', (s) => s.get(id));
+}
+export async function deleteFile(id: string) {
+  if (remote) {
+    memFiles.delete(id);
+    await remote.deleteFile(id);
+    return;
+  }
+  await tx('files', 'readwrite', (s) => s.delete(id));
+}
 
-/** "Изтрий всички данни": state and files. */
+/** "Изтрий всички данни" for the device-only mode (cloud deletion: ../cloud/sync.ts deleteAccount). */
 export async function wipeAll() {
   cache = emptyState();
+  memFiles.clear();
+  if (remote) return;
   await tx('state', 'readwrite', (s) => s.clear());
   await tx('files', 'readwrite', (s) => s.clear());
 }

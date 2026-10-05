@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { onRecoveryCode, peekRecoveryCode } from '../../lib/cloud/notice';
 import { useNavigate } from 'react-router-dom';
 import { CheckCircle2, LineChart, Upload } from 'lucide-react';
 import { DISCLAIMER, type MeResponse } from '@vitalog/shared';
@@ -18,13 +19,16 @@ export function Onboarding() {
   const { me, setMe } = useAuth();
   const navigate = useNavigate();
   const [open, setOpen] = useState(!me?.profile.onboardingCompletedAt);
+  // the recovery code dialog (cloud sign-up) must be handled first – never two modals at once
+  const [blocked, setBlocked] = useState(!!peekRecoveryCode());
+  useEffect(() => onRecoveryCode(() => setBlocked(!!peekRecoveryCode())), []);
   const finish = async (go?: string) => {
     setOpen(false);
     try { setMe(await patch<MeResponse>('/api/profile', { onboardingCompleted: true })); } catch { /* non-critical */ }
     if (go) navigate(go);
   };
   return (
-    <Dialog open={open} onClose={() => finish()} title={`Добре дошъл${me ? `, ${me.profile.displayName}` : ''}!`}
+    <Dialog open={open && !blocked} onClose={() => finish()} title={`Добре дошъл${me ? `, ${me.profile.displayName}` : ''}!`}
       footer={<>
         <Button variant="ghost" onClick={() => finish()}>По-късно</Button>
         <Button onClick={() => finish('/app/upload')} icon={<Upload className="size-4" />}>Качи първото си изследване</Button>

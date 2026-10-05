@@ -1,8 +1,8 @@
-# Publishes the STATIC DEMO (synthetic data only, no backend) to GitHub Pages:
+# Publishes the browser version (local mode + optional encrypted Supabase sync) to GitHub Pages:
 #   https://<user>.github.io/vitalog/
 # One-time setup: repo Settings → Pages → Source: "GitHub Actions".
-# The real application (API, database, uploads) must NOT be hosted on Pages – see docs/07-DEPLOYMENT.md.
-name: Pages (static demo)
+# Health data is never sent to GitHub: PDFs are processed in the browser; cloud data is E2E encrypted.
+name: Pages
 on:
   push: { branches: [main] }
   workflow_dispatch:
@@ -17,7 +17,11 @@ jobs:
         with: { node-version: 22, cache: npm }
       - run: npm ci
       - run: npm run build:pages
-        env: { VITE_BASE: "/${{ github.event.repository.name }}/" }
+        env:
+          VITE_BASE: "/${{ github.event.repository.name }}/"
+          # optional encrypted cloud sync (public values; access is enforced by RLS)
+          VITE_SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
       - uses: actions/upload-pages-artifact@v3
         with: { path: apps/web/dist }
   deploy:

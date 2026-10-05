@@ -45,6 +45,7 @@ export function App() {
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Auth mode="login" />} />
         <Route path="/register" element={<Auth mode="register" />} />
+        <Route path="/start" element={<Auth mode="start" />} />
         <Route path="/forgot" element={<Auth mode="forgot" />} />
         <Route path="/reset" element={<Auth mode="reset" />} />
         <Route path="/verify" element={<Auth mode="verify" />} />
